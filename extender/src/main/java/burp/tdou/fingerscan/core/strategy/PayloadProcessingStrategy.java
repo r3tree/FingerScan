@@ -38,6 +38,9 @@ public class PayloadProcessingStrategy implements ScanStrategy {
 
     @Override
     public boolean shouldApply(ScanRequest request) {
+        if (request.isFromRedirect()) {
+            return false;
+        }
         return dataBoardTab != null
                 && dataBoardTab.hasActiveScan()
                 && dataBoardTab.hasPayloadProcessing();

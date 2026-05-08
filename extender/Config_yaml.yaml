@@ -71,5 +71,6 @@ Icon_Hash_List:
 - {name: "Jenkins", murmur_hash: "81586312", md5: "", type: "Application", info: "Jenkins CI"}
 - {name: "Grafana", murmur_hash: "1499876150", md5: "", type: "Application", info: "Grafana Dashboard"}
 - {name: "Kibana", murmur_hash: "282421062", md5: "", type: "Application", info: "Kibana Dashboard"}
-- {name: "Zabbix", murmur_hash: "1196081225", md5: "", type: "Application", info: "Zabbix Monitor"}- {name: "1panel", murmur_hash: "1300107149", md5: "", type: "Application", info: "fit2cloud 1panel"}
+- {name: "Zabbix", murmur_hash: "1196081225", md5: "", type: "Application", info: "Zabbix Monitor"}
+- {name: "1panel", murmur_hash: "1300107149", md5: "", type: "Application", info: "fit2cloud 1panel"}
 - {name: "1panel", murmur_hash: "1453309674", md5: "", type: "Application", info: "fit2cloud 1panel"}
