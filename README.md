@@ -20,7 +20,7 @@
 | 模块 | 说明 |
 |------|------|
 | **被动指纹识别** | 代理流量自动匹配 YAML 规则库，识别 Spring、Swagger、Nacos、Jenkins 等 |
-| **Favicon Hash** | 自动采集网站图标，计算 MurmurHash3 / MD5，匹配 500+ 已知应用指纹（兼容 Shodan / FOFA） |
+| **Favicon Hash** | 自动采集网站图标，计算 MurmurHash3 / MD5，匹配已知应用指纹（兼容 Quake / FOFA） |
 | **递归目录扫描** | 基于 URL 路径层级 x 规则路径列表组合扫描 |
 | **Payload 处理** | 对请求进行自定义变换（前缀/后缀/正则替换/条件断言）后重放 |
 | **路径收集** | 自动提取代理流量中的一级路径，统计命中主机数，可导出为字典 |
@@ -58,13 +58,16 @@
 | Active Scan | 启用主动扫描（递归目录 + Payload） |
 
 右键菜单支持：复制 URL、发送到 Repeater、计算 Body MD5/Hash、添加 Host 黑名单、临时过滤等。
+<img width="1641" height="757" alt="image" src="https://github.com/user-attachments/assets/f4ae0018-4924-4771-986f-2232ad62be19" />
+
 
 ### 指纹管理
 
 管理 YAML 格式的指纹规则，包含两个子面板：
 
 - **正则规则** — 基于 URL + 正则表达式匹配响应体，支持增删改查、导入导出、批量启用/禁用
-- **Icon Hash 规则** — 基于 MurmurHash3 / MD5 匹配 Favicon，内置 500+ 条常见应用指纹
+- **Icon Hash 规则** — 基于 MurmurHash3 / MD5 匹配 Favicon
+<img width="1607" height="758" alt="image" src="https://github.com/user-attachments/assets/9c147ad6-746e-404a-b391-171dbf960ab4" />
 
 ### 图标数据
 
@@ -75,6 +78,9 @@
 - 来源站点列表 & 备注编辑
 - 一键转为指纹规则 & 导出原始图标文件
 
+<img width="3274" height="1500" alt="image" src="https://github.com/user-attachments/assets/e4bbd7ab-ad5f-4748-8f35-c35e511e8d2f" />
+
+
 **Favicon 检测机制：**
 1. HTML 响应经过代理时，自动解析 `<link rel="icon">` / `<link rel="shortcut icon">` 等标签
 2. 注册 Favicon URL 到内存注册表
@@ -84,6 +90,8 @@
 ### 路径收集
 
 自动提取代理流量中的一级 URL 路径（如 `/api`、`/admin`），按命中主机数统计，支持搜索过滤和导出为 `.txt` 字典。
+
+<img width="1643" height="743" alt="image" src="https://github.com/user-attachments/assets/cbf42f07-f4a7-41a3-9473-7a2891fa4ef9" />
 
 ### 配置
 
@@ -186,7 +194,7 @@ Icon_Hash_List:
     info: Jenkins CI
 ```
 
-`murmur_hash` 和 `md5` 至少填写一个，Hash 值与 Shodan / FOFA 格式兼容。
+`murmur_hash` 和 `md5` 至少填写一个，Hash 值与 Quake / FOFA 格式兼容。
 
 ## 编译构建
 

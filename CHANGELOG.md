@@ -1,5 +1,19 @@
 # 更新日志
 
+## 2026-05-08 (v3.0.2)
+
+### Bug 修复
+
+- **重定向请求触发递归目录扫描导致无限循环**
+
+  当指纹规则（如 Druid Monitor）的 URL 路径（`/druid/login.html`）与目标服务器返回 302 重定向时，重定向请求会重新进入 `ScanOrchestrator`，`RecursiveDirectoryScanStrategy` 基于重定向路径再次生成递归扫描任务，导致路径不断叠加（`/druid/druid/druid/...`），形成无限循环。
+
+  **修复**：在 `RecursiveDirectoryScanStrategy` 和 `PayloadProcessingStrategy` 的 `shouldApply()` 中增加 `request.isFromRedirect()` 检查，重定向请求仅做被动指纹识别，不再触发递归目录扫描和 Payload 处理。
+
+  涉及文件：
+  - `RecursiveDirectoryScanStrategy.java` — `shouldApply()` 跳过重定向请求
+  - `PayloadProcessingStrategy.java` — `shouldApply()` 跳过重定向请求
+
 ## 2026-05-06 (v3.0.1)
 
 ### 优化
