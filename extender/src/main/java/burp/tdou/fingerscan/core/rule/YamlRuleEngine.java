@@ -41,6 +41,7 @@ public class YamlRuleEngine implements RuleEngine {
         }
 
         String responseStr = new String(response);
+        int statusCode = parseStatusCode(responseStr);
         List<MatchResult> results = new ArrayList<>();
 
         for (Map<String, Object> rule : rules) {
@@ -49,6 +50,10 @@ public class YamlRuleEngine implements RuleEngine {
                 String name = getStringField(rule, "name");
 
                 if (regex == null || regex.isEmpty() || name == null) {
+                    continue;
+                }
+
+                if (!matchStatusCode(statusCode, getStringField(rule, "state"))) {
                     continue;
                 }
 
@@ -97,6 +102,41 @@ public class YamlRuleEngine implements RuleEngine {
     private String getStringField(Map<String, Object> map, String key) {
         Object value = map.get(key);
         return value != null ? value.toString() : null;
+    }
+
+    /**
+     * 从响应首行解析 HTTP 状态码
+     */
+    private int parseStatusCode(String responseStr) {
+        int lineEnd = responseStr.indexOf('\r');
+        if (lineEnd < 0) lineEnd = responseStr.indexOf('\n');
+        if (lineEnd < 0) return -1;
+        String statusLine = responseStr.substring(0, lineEnd);
+        // HTTP/1.1 200 OK
+        String[] parts = statusLine.split("\\s+", 3);
+        if (parts.length >= 2) {
+            try {
+                return Integer.parseInt(parts[1]);
+            } catch (NumberFormatException e) {
+                return -1;
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * 校验响应状态码是否匹配规则的 state 字段
+     * state 为 null、空、"0" 时忽略状态码条件（始终匹配）
+     */
+    private boolean matchStatusCode(int statusCode, String state) {
+        if (state == null || state.isEmpty() || "0".equals(state)) {
+            return true;
+        }
+        try {
+            return statusCode == Integer.parseInt(state);
+        } catch (NumberFormatException e) {
+            return true;
+        }
     }
 
     /**

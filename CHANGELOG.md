@@ -1,5 +1,49 @@
 # 更新日志
 
+## 2026-05-09 (v3.0.3)
+
+### Bug 修复
+
+- **指纹匹配未校验 HTTP 状态码，302 响应误匹配 state=200 的规则**
+
+  `YamlRuleEngine.match()` 完全忽略了规则的 `state` 字段，只要正则匹配就算命中。导致 302 响应中 Location 头包含关键词（如 "druid"）时，`state: '200'` 的规则也会被匹配，间接触发重定向循环。
+
+  **修复**：在 `match()` 中从响应首行解析 HTTP 状态码，与规则 `state` 字段比对。`state` 为 `0` 或空时忽略状态码条件，其他值严格匹配。
+
+  涉及文件：
+  - `YamlRuleEngine.java` — 新增 `parseStatusCode()` 和 `matchStatusCode()` 方法
+
+### 优化
+
+- **指纹规则分组按钮栏**
+
+  在指纹管理的正则规则面板顶部新增分组按钮栏，按规则的 `type` 字段自动分组。按钮显示分组名称和数量（如 `Spring (6)`），使用 `JToggleButton` + `ButtonGroup` 实现，点击即时切换无延迟。分组过滤与搜索可叠加使用，批量启用/禁用操作仅作用于当前可见的规则，操作后保持当前分组不跳转。
+
+  涉及文件：
+  - `FingerprintPanel.java` — 新增分组按钮栏、`buildGroupTabs()`、`applyGroupFilter()`、`applyFilters()`，重构 `batchEnable()` 和搜索过滤逻辑
+
+- **指纹规则表格支持多选**
+
+  选择模式从 `SINGLE_SELECTION` 改为 `MULTIPLE_INTERVAL_SELECTION`，支持 Ctrl/Shift 多选操作。
+
+  涉及文件：
+  - `FingerprintPanel.java` — 表格选择模式变更
+
+- **分组内操作后保持当前分组**
+
+  删除、编辑等操作触发规则重载后，分组不再跳回"全部"，而是保持在当前选中的分组。
+
+  涉及文件：
+  - `FingerprintPanel.java` — `buildGroupTabs()` 重建前记录当前分组名，重建后恢复
+
+- **指纹规则编辑器 "状态" 改为 "状态码"**
+
+  原编辑器的 "状态" 下拉框选项为 `active/inactive/testing/deprecated`（生命周期状态），与实际 YAML 中存储的 HTTP 状态码（`200`、`206`）不一致。改为 `0`（忽略状态码）和 `200`，支持手动输入其他状态码。
+
+  涉及文件：
+  - `FingerprintRuleDialog.java` — 标签改为 "状态码:"，下拉选项改为 `{0, 200}`
+  - `FingerprintPanel.java` — 表格列头 "状态" 改为 "状态码"
+
 ## 2026-05-08 (v3.0.2)
 
 ### Bug 修复

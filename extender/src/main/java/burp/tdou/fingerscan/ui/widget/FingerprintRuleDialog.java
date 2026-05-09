@@ -37,7 +37,7 @@ public class FingerprintRuleDialog extends JDialog implements ActionListener {
     // 预定义选项
     private static final String[] HTTP_METHODS = {"GET", "POST", "PUT", "DELETE", "HEAD", "OPTIONS", "PATCH"};
     private static final String[] RULE_TYPES = {"web", "api", "admin", "backup", "config", "debug", "other"};
-    private static final String[] RULE_STATES = {"active", "inactive", "testing", "deprecated"};
+    private static final String[] RULE_STATES = {"0", "200"};
     
     /**
      * 构造函数
@@ -165,9 +165,9 @@ public class FingerprintRuleDialog extends JDialog implements ActionListener {
         
         row++;
         
-        // 状态
+        // 状态码
         gbc.gridx = 0; gbc.gridy = row; gbc.fill = GridBagConstraints.NONE; gbc.weightx = 0;
-        panel.add(new JLabel("状态:"), gbc);
+        panel.add(new JLabel("状态码:"), gbc);
         gbc.gridx = 1; gbc.fill = GridBagConstraints.HORIZONTAL; gbc.weightx = 1.0;
         stateComboBox = new JComboBox<>(RULE_STATES);
         stateComboBox.setEditable(true);
@@ -234,7 +234,7 @@ public class FingerprintRuleDialog extends JDialog implements ActionListener {
         String type = rule.get("type") != null ? rule.get("type").toString() : "web";
         typeComboBox.setSelectedItem(type);
         
-        String state = rule.get("state") != null ? rule.get("state").toString() : "active";
+        String state = rule.get("state") != null ? rule.get("state").toString() : "0";
         stateComboBox.setSelectedItem(state);
         
         infoArea.setText(rule.get("info") != null ? rule.get("info").toString() : "");

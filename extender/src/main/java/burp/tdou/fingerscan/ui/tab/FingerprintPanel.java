@@ -40,16 +40,24 @@ public class FingerprintPanel extends JPanel implements ActionListener, KeyListe
     private JTextField searchField;
     private JLabel countLabel;
     private JTextField configPathField;
+    private JPanel groupTabBar;
+    private ButtonGroup groupButtonGroup;
+    private String selectedGroupName;
+
+    // 当前过滤状态
+    private RowFilter<DefaultTableModel, Object> groupFilter;
+    private RowFilter<DefaultTableModel, Object> searchFilter;
 
     // Icon Hash UI组件
     private JTable iconHashTable;
     private DefaultTableModel iconHashTableModel;
     private TableRowSorter<DefaultTableModel> iconHashTableSorter;
+    private JTextField iconHashSearchField;
     private JLabel iconHashCountLabel;
     
     // 表格列名
     private static final String[] COLUMN_NAMES = {
-        "ID", "名称", "启用", "方法", "URL路径", "正则表达式", "类型", "状态", "描述"
+        "ID", "名称", "启用", "方法", "URL路径", "正则表达式", "类型", "状态码", "描述"
     };
 
     private static final String[] ICON_HASH_COLUMN_NAMES = {
@@ -86,6 +94,13 @@ public class FingerprintPanel extends JPanel implements ActionListener, KeyListe
 
         // Tab 1: 正则规则
         JPanel regexPanel = new JPanel(new BorderLayout());
+        groupTabBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 2, 2));
+        groupButtonGroup = new ButtonGroup();
+        JScrollPane groupTabScroll = new JScrollPane(groupTabBar,
+                JScrollPane.VERTICAL_SCROLLBAR_NEVER, JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+        groupTabScroll.setBorder(BorderFactory.createEmptyBorder());
+        groupTabScroll.setPreferredSize(new Dimension(0, 32));
+        regexPanel.add(groupTabScroll, BorderLayout.NORTH);
         regexPanel.add(createCenterPanel(), BorderLayout.CENTER);
         regexPanel.add(createBottomPanel(), BorderLayout.SOUTH);
         tabbedPane.addTab("正则规则", regexPanel);
@@ -162,7 +177,7 @@ public class FingerprintPanel extends JPanel implements ActionListener, KeyListe
         fingerprintTable.setRowSorter(tableSorter);
         
         // 设置表格属性
-        fingerprintTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
+        fingerprintTable.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
         fingerprintTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
         
         // 设置列宽
@@ -289,8 +304,89 @@ public class FingerprintPanel extends JPanel implements ActionListener, KeyListe
         }
 
         updateCountLabel();
+        buildGroupTabs();
     }
     
+    /**
+     * 构建分组选项卡
+     */
+    private void buildGroupTabs() {
+        groupTabBar.removeAll();
+        groupButtonGroup = new ButtonGroup();
+
+        // 统计每个类型的数量
+        Map<String, Integer> typeCounts = new LinkedHashMap<>();
+        int total = tableModel.getRowCount();
+        for (int i = 0; i < total; i++) {
+            String type = str(tableModel.getValueAt(i, 6));
+            if (type.isEmpty()) type = "未分类";
+            typeCounts.merge(type, 1, Integer::sum);
+        }
+
+        // "全部" 按钮
+        addGroupButton(null, "全部 (" + total + ")");
+
+        // 各分组按钮
+        for (Map.Entry<String, Integer> entry : typeCounts.entrySet()) {
+            addGroupButton(entry.getKey(), entry.getKey() + " (" + entry.getValue() + ")");
+        }
+
+        groupTabBar.revalidate();
+        groupTabBar.repaint();
+        applyGroupFilter();
+    }
+
+    private void addGroupButton(String groupName, String label) {
+        JToggleButton btn = new JToggleButton(label);
+        btn.setFocusPainted(false);
+        btn.putClientProperty("groupName", groupName);
+        btn.addActionListener(e -> {
+            selectedGroupName = groupName;
+            applyGroupFilter();
+        });
+        if (groupName == null && selectedGroupName == null
+                || groupName != null && groupName.equals(selectedGroupName)) {
+            btn.setSelected(true);
+        }
+        groupButtonGroup.add(btn);
+        groupTabBar.add(btn);
+    }
+
+    /**
+     * 根据选中的分组 tab 设置过滤器
+     */
+    private void applyGroupFilter() {
+        if (selectedGroupName == null) {
+            groupFilter = null;
+        } else {
+            String matchValue = "未分类".equals(selectedGroupName) ? "" : selectedGroupName;
+            groupFilter = new RowFilter<DefaultTableModel, Object>() {
+                @Override
+                public boolean include(Entry<? extends DefaultTableModel, ? extends Object> entry) {
+                    String type = str(entry.getValue(6));
+                    return type.equals(matchValue);
+                }
+            };
+        }
+        applyFilters();
+    }
+
+    /**
+     * 合并分组过滤和搜索过滤
+     */
+    private void applyFilters() {
+        List<RowFilter<DefaultTableModel, Object>> filters = new ArrayList<>();
+        if (groupFilter != null) filters.add(groupFilter);
+        if (searchFilter != null) filters.add(searchFilter);
+        if (filters.isEmpty()) {
+            tableSorter.setRowFilter(null);
+        } else if (filters.size() == 1) {
+            tableSorter.setRowFilter(filters.get(0));
+        } else {
+            tableSorter.setRowFilter(RowFilter.andFilter(filters));
+        }
+    }
+
     /**
      * 更新规则启用状态
      */
@@ -394,6 +490,12 @@ public class FingerprintPanel extends JPanel implements ActionListener, KeyListe
                 break;
             case "icon-hash-delete":
                 deleteIconHashRule();
+                break;
+            case "icon-hash-search":
+                performIconHashSearch();
+                break;
+            case "icon-hash-clear-search":
+                clearIconHashSearch();
                 break;
         }
     }
@@ -611,15 +713,18 @@ public class FingerprintPanel extends JPanel implements ActionListener, KeyListe
      */
     private void batchEnable(boolean enable) {
         String action = enable ? "启用" : "禁用";
-        int result = JOptionPane.showConfirmDialog(this, 
-            "确定要" + action + "所有规则吗？", 
-            "确认" + action, 
+        boolean isFiltered = groupFilter != null || searchFilter != null;
+        String scope = isFiltered ? "当前筛选的" : "所有";
+        int result = JOptionPane.showConfirmDialog(this,
+            "确定要" + action + scope + "规则吗？",
+            "确认" + action,
             JOptionPane.YES_NO_OPTION);
-        
+
         if (result == JOptionPane.YES_OPTION) {
-            for (int i = 0; i < tableModel.getRowCount(); i++) {
-                tableModel.setValueAt(enable, i, 2);
-                updateRuleEnabledStatus(i);
+            for (int viewRow = 0; viewRow < fingerprintTable.getRowCount(); viewRow++) {
+                int modelRow = fingerprintTable.convertRowIndexToModel(viewRow);
+                tableModel.setValueAt(enable, modelRow, 2);
+                updateRuleEnabledStatus(modelRow);
             }
             updateCountLabel();
         }
@@ -631,25 +736,27 @@ public class FingerprintPanel extends JPanel implements ActionListener, KeyListe
     private void performSearch() {
         String searchText = searchField.getText().trim();
         if (searchText.isEmpty()) {
-            tableSorter.setRowFilter(null);
+            searchFilter = null;
         } else {
             try {
-                RowFilter<DefaultTableModel, Object> filter = RowFilter.regexFilter(
-                    "(?i)" + Pattern.quote(searchText)); // 不区分大小写的搜索
-                tableSorter.setRowFilter(filter);
+                searchFilter = RowFilter.regexFilter(
+                    "(?i)" + Pattern.quote(searchText));
             } catch (Exception ex) {
-                JOptionPane.showMessageDialog(this, "搜索表达式无效：" + ex.getMessage(), 
+                JOptionPane.showMessageDialog(this, "搜索表达式无效：" + ex.getMessage(),
                     "搜索错误", JOptionPane.ERROR_MESSAGE);
+                return;
             }
         }
+        applyFilters();
     }
-    
+
     /**
      * 清除搜索
      */
     private void clearSearch() {
         searchField.setText("");
-        tableSorter.setRowFilter(null);
+        searchFilter = null;
+        applyFilters();
     }
 
     // ============================================================
@@ -699,8 +806,30 @@ public class FingerprintPanel extends JPanel implements ActionListener, KeyListe
         buttonPanel.add(new JLabel("规则数量: "));
         buttonPanel.add(iconHashCountLabel);
 
+        // 搜索和过滤面板
+        JPanel searchPanel = new JPanel(new BorderLayout());
+        searchPanel.setBorder(new TitledBorder("搜索和过滤"));
+        JPanel searchInner = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        searchInner.add(new JLabel("搜索:"));
+        iconHashSearchField = new JTextField(20);
+        iconHashSearchField.addKeyListener(this);
+        searchInner.add(iconHashSearchField);
+        JButton searchBtn = new JButton("搜索");
+        searchBtn.setActionCommand("icon-hash-search");
+        searchBtn.addActionListener(this);
+        searchInner.add(searchBtn);
+        JButton clearBtn = new JButton("清除");
+        clearBtn.setActionCommand("icon-hash-clear-search");
+        clearBtn.addActionListener(this);
+        searchInner.add(clearBtn);
+        searchPanel.add(searchInner, BorderLayout.WEST);
+
+        JPanel bottomPanel = new JPanel(new BorderLayout());
+        bottomPanel.add(buttonPanel, BorderLayout.NORTH);
+        bottomPanel.add(searchPanel, BorderLayout.SOUTH);
+
         panel.add(scrollPane, BorderLayout.CENTER);
-        panel.add(buttonPanel, BorderLayout.SOUTH);
+        panel.add(bottomPanel, BorderLayout.SOUTH);
         return panel;
     }
 
@@ -764,6 +893,27 @@ public class FingerprintPanel extends JPanel implements ActionListener, KeyListe
         }
     }
 
+    private void performIconHashSearch() {
+        String searchText = iconHashSearchField.getText().trim();
+        if (searchText.isEmpty()) {
+            iconHashTableSorter.setRowFilter(null);
+        } else {
+            try {
+                RowFilter<DefaultTableModel, Object> filter = RowFilter.regexFilter(
+                    "(?i)" + Pattern.quote(searchText));
+                iconHashTableSorter.setRowFilter(filter);
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this, "搜索表达式无效：" + ex.getMessage(),
+                    "搜索错误", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }
+
+    private void clearIconHashSearch() {
+        iconHashSearchField.setText("");
+        iconHashTableSorter.setRowFilter(null);
+    }
+
     @Override
     public void keyTyped(KeyEvent e) {
         // 不需要实现
@@ -771,16 +921,21 @@ public class FingerprintPanel extends JPanel implements ActionListener, KeyListe
     
     @Override
     public void keyPressed(KeyEvent e) {
-        if (e.getKeyCode() == KeyEvent.VK_ENTER && e.getSource() == searchField) {
-            performSearch();
+        if (e.getKeyCode() == KeyEvent.VK_ENTER) {
+            if (e.getSource() == searchField) {
+                performSearch();
+            } else if (e.getSource() == iconHashSearchField) {
+                performIconHashSearch();
+            }
         }
     }
-    
+
     @Override
     public void keyReleased(KeyEvent e) {
-        // 实时搜索
         if (e.getSource() == searchField) {
             performSearch();
+        } else if (e.getSource() == iconHashSearchField) {
+            performIconHashSearch();
         }
     }
 
